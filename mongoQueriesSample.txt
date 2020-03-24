@@ -1,0 +1,186 @@
+==========
+mongod
+mongo
+show dbs
+user testChat
+==========
+
+1) lookup = join.
+
+Aggregation Pipeline: 
+
+db.usertype.aggregate([
+   { $match: { status: true, cust_id: 1 } },
+   { $group: { _id: "$cust_id", totalamount: { $sum: "$amount" }, totalqty: { $sum: "$qty" } } }
+])
+
+------
+
+Map-Reduce :
+
+only count :
+db.usertype.mapReduce(
+	function(){ emit(this.cust_id, this.amount ); },
+	function(key, values){ return Array.sum( values ) },
+	{
+	 query: { status: true },
+	 out: "order_totals"
+	}
+
+)
+
+ show data : 
+db.usertype.mapReduce(
+	function(){ emit(this.cust_id, this.amount ); },
+	function(key, values){ return Array.sum( values ) },
+	{
+	 query: { status: true },
+	 out: "order_totals"
+	}
+
+).find()
+
+----------
+
+Projection (show neccesary data) : 
+0 means false, 1 means true
+
+Projection with aggregate function : 
+
+db.usertype.aggregate([{ $project:{ "_id": 0, "cust_id": 1, "qty": 1  } }]).pretty()
+
+db.usertype.aggregate([{ $project:{ "_id": 0, "amount": 0  } }]).pretty()
+
+both quries same result. only _id will pass 0 with 1 of other fields
+
+Projection without aggregate function : 
+
+db.usertype.find({}, {"_id": 0, "cust_id": 1, "qty": 1}).pretty() : all records
+
+db.usertype.find({"cust_id": 1}, {"_id": 0, "cust_id": 1, "qty": 1}).pretty() : where clause records
+
+-----------
+
+Sorting :
+
+Asc : 1
+db.usertype.find().sort({"qty":1}).pretty()
+
+Desc : -1
+
+db.usertype.find().sort({"qty":-1}).pretty()
+
+
+------------
+
+Skip : 
+
+db.usertype.find().sort({"qty":1}).skip(2).pretty()
+
+-------------
+
+Limit : 
+
+db.usertype.find().limit(1).pretty()
+
+-------------
+
+Indexing : 
+
+db.usertype.getIndexes()
+
+db.employees.getIndexes()
+
+db.usertype.createIndex({"email": 1})
+
+db.employees.createIndex({"email": 1})
+---------------
+
+Schema : 
+
+db.createCollection("students", {
+   validator: {
+      $jsonSchema: {
+         bsonType: "object",
+         required: [ "name", "year", "major", "address" ],
+         properties: {
+            name: {
+               bsonType: "string",
+               description: "must be a string and is required"
+            },
+            year: {
+               bsonType: "int",
+               minimum: 2017,
+               maximum: 3017,
+               description: "must be an integer in [ 2017, 3017 ] and is required"
+            },
+            major: {
+               enum: [ "Math", "English", "Computer Science", "History", null ],
+               description: "can only be one of the enum values and is required"
+            },
+            gpa: {
+               bsonType: [ "double" ],
+               description: "must be a double if the field exists"
+            },
+            address: {
+               bsonType: "object",
+               required: [ "city" ],
+               properties: {
+                  street: {
+                     bsonType: "string",
+                     description: "must be a string if the field exists"
+                  },
+                  city: {
+                     bsonType: "string",
+                     "description": "must be a string and is required"
+                  }
+               }
+            }
+         }
+      }
+   }
+})
+
+insert one in students collection : 
+
+db.students.insertOne(
+	{
+	 "name": "Umair Muzzafar",
+	 "year": NumberInt(2019),
+	 "major": "Math",
+	 "gpa": 4.5,
+	 "address": {
+	  	"city": "Karachi",
+		"street" : "Zam Zama"
+ 	  }
+	  
+	}
+)
+
+
+------------------
+
+Unique validation : 
+
+https://www.npmjs.com/package/mongoose-unique-validator
+
+*) npm install --save mongoose-unique-validator
+
+var mongoose = require('mongoose');
+var uniqueValidator = require('mongoose-unique-validator');
+ 
+// Define your schema as normal.
+var userSchema = mongoose.Schema({
+    username: { type: String, required: true, unique: true },
+    email: { type: String, index: true, unique: true, required: true },
+    password: { type: String, required: true }
+});
+ 
+// Apply the uniqueValidator plugin to userSchema.
+userSchema.plugin(uniqueValidator);
+
+----------------
+
+Auto increment : 
+
+https://github.com/ramiel/mongoose-sequence
